@@ -13,76 +13,70 @@ import mate.academy.service.impl.ProductServiceImpl;
 
 public class Injector {
     private static final Injector injector = new Injector();
-    private final Map<Class<?>, Class<?>> interafaceImplementations = new HashMap<>();
-    private Map<Class<?>, Object> instances = new HashMap<>();
+    private final Map<Class<?>, Class<?>> interfaceImplementations = Map.of(
+            FileReaderService.class, FileReaderServiceImpl.class,
+            ProductParser.class, ProductParserImpl.class,
+            ProductService.class, ProductServiceImpl.class
+    );
+    private final Map<Class<?>, Object> instances = new HashMap<>();
 
     public static Injector getInjector() {
         return injector;
     }
 
     public Object getInstance(Class<?> interfaceClazz) {
-        Object clazzImplementationInstance = null;
         Class<?> clazz = findImplementation(interfaceClazz);
-        Field[] declaredFields = clazz.getDeclaredFields();
-        for (Field field : declaredFields) {
+        if (instances.containsKey(clazz)) {
+            return instances.get(clazz);
+        }
+        Object clazzImplementationInstance = createNewInstance(clazz);
+        instances.put(clazz, clazzImplementationInstance);
+        for (Field field : clazz.getDeclaredFields()) {
             if (field.isAnnotationPresent(Inject.class)) {
                 Object fieldInstance = getInstance(field.getType());
-                clazzImplementationInstance = createNewInstance(clazz);
                 field.setAccessible(true);
                 try {
                     field.set(clazzImplementationInstance, fieldInstance);
                 } catch (IllegalAccessException e) {
-                    throw new RuntimeException("Can't initialize field value. Class: "
-                            + clazz.getName() + ". Field: " + field.getName(), e);
+                    throw new RuntimeException(
+                            "Can't initialize field value. Class: "
+                                    + clazz.getName() + ". Field: " + field.getName(), e);
                 }
             }
-        }
-        if (clazzImplementationInstance == null) {
-            clazzImplementationInstance = createNewInstance(clazz);
         }
         return clazzImplementationInstance;
     }
 
     private Object createNewInstance(Class<?> clazz) {
         if (!clazz.isAnnotationPresent(Component.class)) {
-            throw new RuntimeException("Class: " + clazz.getName()
+            throw new RuntimeException("Implementation class " + clazz.getName()
                     + " is not annotated with @Component");
-        }
-        if (instances.containsKey(clazz)) {
-            return instances.get(clazz);
         }
         try {
             Constructor<?> constructor = clazz.getConstructor();
-            Object instance = constructor.newInstance();
-            instances.put(clazz, instance);
-            return instance;
+            return constructor.newInstance();
         } catch (ReflectiveOperationException e) {
             throw new RuntimeException("Can't create a new instance of " + clazz.getName(), e);
         }
     }
 
     private Class<?> findImplementation(Class<?> interfaceClazz) {
-        interafaceImplementations.put(FileReaderService.class, FileReaderServiceImpl.class);
-        interafaceImplementations.put(ProductParser.class, ProductParserImpl.class);
-        interafaceImplementations.put(ProductService.class, ProductServiceImpl.class);
-
         if (interfaceClazz.isInterface()) {
-            Class<?> implementation = interafaceImplementations.get(interfaceClazz);
-            if (!implementation.isAnnotationPresent(Component.class)) {
-                throw new RuntimeException("Class: " + interfaceClazz.getName()
-                        + " is not annotated with @Component");
-            }
+            Class<?> implementation = interfaceImplementations.get(interfaceClazz);
             if (implementation == null) {
                 throw new RuntimeException("No implementation found for "
                         + interfaceClazz.getName());
             }
+            if (!implementation.isAnnotationPresent(Component.class)) {
+                throw new RuntimeException("Implementation class "
+                        + implementation.getName() + " is not annotated with @Component");
+            }
             return implementation;
         }
-        if (!interafaceImplementations.containsValue(interfaceClazz)) {
-            throw new RuntimeException("Unsupported class passed: " + interfaceClazz.getName());
+        if (!interfaceImplementations.containsValue(interfaceClazz)) {
+            throw new RuntimeException("Unsupported class passed: "
+                    + interfaceClazz.getName());
         }
-
         return interfaceClazz;
     }
-
 }
