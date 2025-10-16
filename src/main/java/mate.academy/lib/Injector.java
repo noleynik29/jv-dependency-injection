@@ -2,7 +2,6 @@ package mate.academy.lib;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 import mate.academy.service.FileReaderService;
@@ -14,6 +13,7 @@ import mate.academy.service.impl.ProductServiceImpl;
 
 public class Injector {
     private static final Injector injector = new Injector();
+    private final Map<Class<?>, Class<?>> interafaceImplementations = new HashMap<>();
     private Map<Class<?>, Object> instances = new HashMap<>();
 
     public static Injector getInjector() {
@@ -32,8 +32,8 @@ public class Injector {
                 try {
                     field.set(clazzImplementationInstance, fieldInstance);
                 } catch (IllegalAccessException e) {
-                    throw new RuntimeException("Can't initialize field value. "
-                            + "Class: " + clazz.getName() + ". Field: " + field.getName());
+                    throw new RuntimeException("Can't initialize field value. Class: "
+                            + clazz.getName() + ". Field: " + field.getName(), e);
                 }
             }
         }
@@ -44,6 +44,9 @@ public class Injector {
     }
 
     private Object createNewInstance(Class<?> clazz) {
+        if (!clazz.isAnnotationPresent(Component.class)) {
+            throw new RuntimeException("Class: " + clazz.getName() + " is not annotated with @Component");
+        }
         if (instances.containsKey(clazz)) {
             return instances.get(clazz);
         }
@@ -52,20 +55,21 @@ public class Injector {
             Object instance = constructor.newInstance();
             instances.put(clazz, instance);
             return instance;
-        } catch (NoSuchMethodException | InstantiationException
-                 | InvocationTargetException | IllegalAccessException e) {
-            throw new RuntimeException("Can't create a new instance of " + clazz.getName());
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Can't create a new instance of " + clazz.getName(), e);
         }
     }
 
     private Class<?> findImplementation(Class<?> interfaceClazz) {
-        Map<Class<?>, Class<?>> interafaceImplementations = new HashMap<>();
         interafaceImplementations.put(FileReaderService.class, FileReaderServiceImpl.class);
         interafaceImplementations.put(ProductParser.class, ProductParserImpl.class);
         interafaceImplementations.put(ProductService.class, ProductServiceImpl.class);
 
         if (interfaceClazz.isInterface()) {
             Class<?> implementation = interafaceImplementations.get(interfaceClazz);
+            if (!implementation.isAnnotationPresent(Component.class)) {
+                throw new RuntimeException("Class: " + interfaceClazz.getName() + " is not annotated with @Component");
+            }
             if (implementation == null) {
                 throw new RuntimeException("No implementation found for "
                         + interfaceClazz.getName());
