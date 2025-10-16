@@ -45,7 +45,8 @@ public class Injector {
 
     private Object createNewInstance(Class<?> clazz) {
         if (!clazz.isAnnotationPresent(Component.class)) {
-            throw new RuntimeException("Class: " + clazz.getName() + " is not annotated with @Component");
+            throw new RuntimeException("Class: " + clazz.getName()
+                    + " is not annotated with @Component");
         }
         if (instances.containsKey(clazz)) {
             return instances.get(clazz);
@@ -68,7 +69,8 @@ public class Injector {
         if (interfaceClazz.isInterface()) {
             Class<?> implementation = interafaceImplementations.get(interfaceClazz);
             if (!implementation.isAnnotationPresent(Component.class)) {
-                throw new RuntimeException("Class: " + interfaceClazz.getName() + " is not annotated with @Component");
+                throw new RuntimeException("Class: " + interfaceClazz.getName()
+                        + " is not annotated with @Component");
             }
             if (implementation == null) {
                 throw new RuntimeException("No implementation found for "
